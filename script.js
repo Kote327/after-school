@@ -190,9 +190,23 @@ function renderMembers() {
     : '<p class="members-empty">メンバーはまだいません。</p>';
 }
 
+function renderAvailability() {
+  const group = activeGroup();
+  const availableDates = Array.from({ length: 7 }, (_, index) => dateAfter(index))
+    .filter((date) => !group.events.some((event) => event.date === date));
+  const availabilityList = document.querySelector('#availabilityList');
+  availabilityList.innerHTML = availableDates.length
+    ? availableDates.map((date) => {
+        const label = dateLabel(date);
+        return `<div class="availability-date"><strong>${label.monthDay}</strong><span>${label.day}</span>${date === today ? '<em>今日</em>' : ''}</div>`;
+      }).join('')
+    : '<p class="availability-empty">今後7日間に空いている日はありません。</p>';
+}
+
 function renderAll() {
   renderGroups();
   renderMembers();
+  renderAvailability();
   document.querySelector('#todayLabel').textContent = new Intl.DateTimeFormat('ja-JP', {
     year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
   }).format(new Date(`${today}T00:00:00`));
