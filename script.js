@@ -97,6 +97,7 @@ const groupForm = document.querySelector('#groupForm');
 const memberModal = document.querySelector('#memberModal');
 const memberForm = document.querySelector('#memberForm');
 const groupSelect = document.querySelector('#groupSelect');
+const deleteGroupButton = document.querySelector('#deleteGroup');
 groupForm.elements.name.addEventListener('input', () => groupForm.elements.name.setCustomValidity(''));
 memberForm.elements.name.addEventListener('input', () => memberForm.elements.name.setCustomValidity(''));
 
@@ -253,6 +254,17 @@ document.querySelector('#openModal').addEventListener('click', () => {
 });
 document.querySelector('#closeModal').addEventListener('click', () => eventModal.close());
 document.querySelector('#createGroup').addEventListener('click', () => groupModal.showModal());
+deleteGroupButton.addEventListener('click', () => {
+  if (groups.length === 1) {
+    window.alert('グループが1つしかないため、削除できません。');
+    return;
+  }
+  const group = activeGroup();
+  if (!window.confirm(`「${group.name}」を削除しますか？\nこのグループの予定とメンバーも削除されます。`)) return;
+  groups = groups.filter((item) => item.id !== group.id);
+  activeGroupId = groups[0].id;
+  saveState();
+});
 document.querySelector('#addMember').addEventListener('click', () => memberModal.showModal());
 document.querySelectorAll('[data-close-dialog]').forEach((button) => {
   button.addEventListener('click', () => document.querySelector(`#${button.dataset.closeDialog}`).close());

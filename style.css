@@ -41,6 +41,7 @@ button { cursor: pointer; }
 #groupSelect { min-width: 180px; max-width: min(100%, 300px); height: 40px; padding: 0 34px 0 12px; border: 1px solid var(--line); border-radius: 4px; color: var(--ink); background: #fff; font-size: 13px; }
 .text-button { border: 0; padding: 8px 2px; color: #c74f43; background: transparent; font-size: 12px; font-weight: 700; }
 .text-button:hover { text-decoration: underline; }
+.danger-button { color: #a33b35; }
 .members-empty { margin: 0; padding: 8px 0; color: var(--muted); font-size: 12px; }
 .form-hint { margin: -3px 0 17px; color: var(--muted); font-size: 11px; line-height: 1.7; }
 button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid rgba(239,105,90,.4); outline-offset: 2px; }
