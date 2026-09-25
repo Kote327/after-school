@@ -18,7 +18,7 @@
         <span class="brand-name">つどい</span>
       </a>
       <div class="topbar-actions">
-        <span class="sync-status"><span class="status-dot"></span>すべて同期済み</span>
+        <span class="sync-status" id="syncStatus"><span class="status-dot"></span>このブラウザーに保存</span>
         <button class="avatar" type="button" aria-label="プロフィール">KN</button>
       </div>
     </header>
@@ -26,9 +26,14 @@
     <main class="main-content">
       <section class="welcome-row" aria-labelledby="page-title">
         <div>
-          <p class="eyebrow">GOOD MORNING, KANA</p>
-          <h1 id="page-title">みんなの予定<span class="title-dot">.</span></h1>
-          <p class="date-line" id="todayLabel">2026年8月25日（火）</p>
+          <p class="eyebrow">GROUP SCHEDULE</p>
+          <label class="group-picker-label" for="groupSelect">表示するグループ</label>
+          <div class="group-controls">
+            <select id="groupSelect" aria-label="表示するグループ"></select>
+            <button class="text-button" id="createGroup" type="button">＋ グループ作成</button>
+          </div>
+          <h1 id="page-title"><span id="activeGroupName">みんな</span>の予定<span class="title-dot">.</span></h1>
+          <p class="date-line" id="todayLabel"></p>
         </div>
         <button class="primary-button" id="openModal" type="button"><span>＋</span>予定を追加</button>
       </section>
@@ -36,7 +41,7 @@
       <section class="summary-strip" aria-label="予定の概要">
         <div class="summary-item"><span class="summary-number" id="todayCount">3</span><span>今日の予定</span></div>
         <div class="summary-divider"></div>
-        <div class="summary-item"><span class="summary-number accent-number" id="memberCount">6</span><span>参加メンバー</span></div>
+        <div class="summary-item"><span class="summary-number accent-number" id="memberCount">5</span><span>参加メンバー</span></div>
         <div class="summary-divider"></div>
         <div class="summary-item next-summary"><span class="summary-label">次の予定</span><strong id="nextEvent">デザイン定例</strong><span id="nextTime">14:00</span></div>
       </section>
@@ -70,20 +75,13 @@
           <section class="members-panel" aria-labelledby="members-heading">
             <div class="section-heading compact-heading">
               <div><p class="section-kicker">PEOPLE</p><h2 id="members-heading">参加メンバー</h2></div>
-              <button class="icon-button" type="button" aria-label="メンバーを追加" title="メンバーを追加">＋</button>
+              <button class="icon-button" id="addMember" type="button" aria-label="メンバーを追加" title="メンバーを追加">＋</button>
             </div>
-            <div class="member-list">
-              <div class="member"><span class="member-avatar coral">KN</span><span><strong>加奈</strong><small>主催者</small></span><i class="online"></i></div>
-              <div class="member"><span class="member-avatar blue">YT</span><span><strong>ゆうた</strong><small>参加者</small></span><i class="online"></i></div>
-              <div class="member"><span class="member-avatar yellow">MS</span><span><strong>まい</strong><small>参加者</small></span><i class="online"></i></div>
-              <div class="member"><span class="member-avatar green">RK</span><span><strong>りく</strong><small>参加者</small></span><i class="online"></i></div>
-              <div class="member"><span class="member-avatar purple">HN</span><span><strong>はな</strong><small>参加者</small></span><i class="offline"></i></div>
-              <div class="member"><span class="member-avatar pale">＋</span><span><strong>招待する</strong><small>リンクを共有</small></span></div>
-            </div>
+            <div class="member-list" id="memberList"></div>
           </section>
           <section class="note-panel">
             <span class="note-icon">✦</span>
-            <div><strong>今週のひとこと</strong><p>火曜日は予定が多め。<br>忘れものに気をつけよう。</p></div>
+            <div><strong>グループの使い方</strong><p>メンバーと予定を追加して<br>グループごとに整理できます。</p></div>
           </section>
         </aside>
       </div>
@@ -94,10 +92,27 @@
     <form id="eventForm" method="dialog">
       <div class="modal-header"><div><p class="section-kicker">NEW EVENT</p><h2>予定を追加</h2></div><button class="close-button" id="closeModal" type="button" aria-label="閉じる">×</button></div>
       <label>予定の名前<input name="title" required placeholder="例：チームミーティング"></label>
-      <div class="form-row"><label>日付<input name="date" type="date" required value="2026-08-25"></label><label>時間<input name="time" type="time" required value="10:00"></label></div>
+      <div class="form-row"><label>日付<input name="date" type="date" required></label><label>時間<input name="time" type="time" required value="10:00"></label></div>
       <label>カテゴリー<select name="category"><option value="work">仕事</option><option value="personal">個人</option><option value="event">イベント</option></select></label>
       <label>参加者<input name="attendees" placeholder="例：加奈、ゆうた"></label>
       <button class="primary-button full-button" type="submit">予定を保存</button>
+    </form>
+  </dialog>
+  <dialog id="groupModal" class="event-modal">
+    <form id="groupForm">
+      <div class="modal-header"><div><p class="section-kicker">NEW GROUP</p><h2>グループを作成</h2></div><button class="close-button" type="button" data-close-dialog="groupModal" aria-label="閉じる">×</button></div>
+      <label>グループ名<input name="name" required maxlength="40" placeholder="例：放課後クラブ"></label>
+      <p class="form-hint">作成したグループは、このブラウザー内に保存されます。</p>
+      <button class="primary-button full-button" type="submit">グループを作成</button>
+    </form>
+  </dialog>
+  <dialog id="memberModal" class="event-modal">
+    <form id="memberForm">
+      <div class="modal-header"><div><p class="section-kicker">ADD MEMBER</p><h2>メンバーを追加</h2></div><button class="close-button" type="button" data-close-dialog="memberModal" aria-label="閉じる">×</button></div>
+      <label>名前<input name="name" required maxlength="30" placeholder="例：ゆうた"></label>
+      <label>表示用のイニシャル<input name="initials" maxlength="3" placeholder="例：YT"></label>
+      <p class="form-hint">メンバー情報は現在選択中のグループに保存されます。</p>
+      <button class="primary-button full-button" type="submit">メンバーを追加</button>
     </form>
   </dialog>
   <script src="script.js"></script>

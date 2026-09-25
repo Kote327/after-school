@@ -1,24 +1,114 @@
-const defaultEvents = [
-  { id: 1, date: '2026-08-25', time: '09:30', title: '朝のチェックイン', category: 'work', attendees: ['KN', 'YT', 'MS'] },
-  { id: 2, date: '2026-08-25', time: '12:30', title: 'ランチタイム', category: 'personal', attendees: ['KN', 'MS'] },
-  { id: 3, date: '2026-08-25', time: '14:00', title: 'デザイン定例', category: 'work', attendees: ['KN', 'YT', 'RK', 'HN'] },
-  { id: 4, date: '2026-08-26', time: '10:00', title: '企画ミーティング', category: 'work', attendees: ['KN', 'YT', 'RK'] },
-  { id: 5, date: '2026-08-27', time: '18:30', title: 'みんなで夕食', category: 'event', attendees: ['KN', 'MS', 'RK', 'HN'] },
-  { id: 6, date: '2026-08-29', time: '11:00', title: '週末マーケット', category: 'event', attendees: ['KN', 'MS'] }
-];
+const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+const categoryLabels = { work: '仕事', personal: '個人', event: 'イベント' };
+const attendeeAvatarClasses = ['coral', 'blue', 'yellow', 'green'];
+const memberAvatarClasses = ['coral', 'blue', 'yellow', 'green', 'purple'];
+const today = dateToString(new Date());
 
-const today = '2026-08-25';
-let events = JSON.parse(localStorage.getItem('tsudoi-events') || 'null') || defaultEvents;
+function dateToString(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function dateAfter(days) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return dateToString(date);
+}
+
+function makeDefaultEvents() {
+  return [
+    { id: 1, date: today, time: '09:30', title: '朝のチェックイン', category: 'work', attendees: ['KN', 'YT', 'MS'] },
+    { id: 2, date: today, time: '12:30', title: 'ランチタイム', category: 'personal', attendees: ['KN', 'MS'] },
+    { id: 3, date: today, time: '14:00', title: 'デザイン定例', category: 'work', attendees: ['KN', 'YT', 'RK', 'HN'] },
+    { id: 4, date: dateAfter(1), time: '10:00', title: '企画ミーティング', category: 'work', attendees: ['KN', 'YT', 'RK'] },
+    { id: 5, date: dateAfter(2), time: '18:30', title: 'みんなで夕食', category: 'event', attendees: ['KN', 'MS', 'RK', 'HN'] },
+    { id: 6, date: dateAfter(4), time: '11:00', title: '週末マーケット', category: 'event', attendees: ['KN', 'MS'] }
+  ];
+}
+
+function readStoredValue(key) {
+  try {
+    const value = localStorage.getItem(key);
+    return value ? JSON.parse(value) : null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeMember(member, index) {
+  return {
+    id: String(member.id || `member-${index}`),
+    name: String(member.name || 'メンバー'),
+    initials: String(member.initials || '？').slice(0, 3),
+    role: String(member.role || '参加者')
+  };
+}
+
+function normalizeEvent(event, index) {
+  const category = Object.hasOwn(categoryLabels, event.category) ? event.category : 'event';
+  return {
+    id: String(event.id || `event-${index}`),
+    date: /^\d{4}-\d{2}-\d{2}$/.test(event.date) ? event.date : today,
+    time: /^\d{2}:\d{2}$/.test(event.time) ? event.time : '10:00',
+    title: String(event.title || '予定'),
+    category,
+    attendees: Array.isArray(event.attendees) ? event.attendees.map(String) : []
+  };
+}
+
+function normalizeGroup(group, index) {
+  return {
+    id: String(group.id || `group-${index}`),
+    name: String(group.name || `グループ ${index + 1}`),
+    members: Array.isArray(group.members) ? group.members.map(normalizeMember) : [],
+    events: Array.isArray(group.events) ? group.events.map(normalizeEvent) : []
+  };
+}
+
+const savedGroups = readStoredValue('tsudoi-groups');
+const legacyEvents = readStoredValue('tsudoi-events');
+let groups = Array.isArray(savedGroups) && savedGroups.length
+  ? savedGroups.map(normalizeGroup)
+  : [{
+      id: 'group-design-team',
+      name: 'デザインチーム',
+      members: [
+        { id: 'member-kn', name: '加奈', initials: 'KN', role: '主催者' },
+        { id: 'member-yt', name: 'ゆうた', initials: 'YT', role: '参加者' },
+        { id: 'member-ms', name: 'まい', initials: 'MS', role: '参加者' },
+        { id: 'member-rk', name: 'りく', initials: 'RK', role: '参加者' },
+        { id: 'member-hn', name: 'はな', initials: 'HN', role: '参加者' }
+      ],
+      events: Array.isArray(legacyEvents) ? legacyEvents.map(normalizeEvent) : makeDefaultEvents()
+    }];
+
+let activeGroupId = readStoredValue('tsudoi-active-group');
+if (typeof activeGroupId !== 'string' || !groups.some((group) => group.id === activeGroupId)) {
+  activeGroupId = groups[0].id;
+}
+
 const agendaView = document.querySelector('#agendaView');
 const weekView = document.querySelector('#weekView');
 const categoryFilter = document.querySelector('#categoryFilter');
 const searchInput = document.querySelector('#searchInput');
-const modal = document.querySelector('#eventModal');
-const form = document.querySelector('#eventForm');
+const eventModal = document.querySelector('#eventModal');
+const eventForm = document.querySelector('#eventForm');
+const groupModal = document.querySelector('#groupModal');
+const groupForm = document.querySelector('#groupForm');
+const memberModal = document.querySelector('#memberModal');
+const memberForm = document.querySelector('#memberForm');
+const groupSelect = document.querySelector('#groupSelect');
+groupForm.elements.name.addEventListener('input', () => groupForm.elements.name.setCustomValidity(''));
+memberForm.elements.name.addEventListener('input', () => memberForm.elements.name.setCustomValidity(''));
 
-const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
-const categoryLabels = { work: '仕事', personal: '個人', event: 'イベント' };
-const avatarClasses = ['coral', 'blue', 'yellow', 'green'];
+function activeGroup() {
+  return groups.find((group) => group.id === activeGroupId) || groups[0];
+}
+
+function escapeHTML(value) {
+  return String(value).replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[character]);
+}
 
 function dateLabel(dateString) {
   const date = new Date(`${dateString}T00:00:00`);
@@ -26,14 +116,14 @@ function dateLabel(dateString) {
 }
 
 function renderAttendees(attendees) {
-  return `<div class="attendees">${attendees.map((person, index) => `<span class="mini-avatar ${avatarClasses[index % avatarClasses.length]}">${person}</span>`).join('')}</div>`;
+  return `<div class="attendees">${attendees.map((person, index) => `<span class="mini-avatar ${attendeeAvatarClasses[index % attendeeAvatarClasses.length]}" title="${escapeHTML(person)}">${escapeHTML(person)}</span>`).join('')}</div>`;
 }
 
 function filteredEvents() {
-  const query = searchInput.value.trim().toLowerCase();
-  return events.filter((event) => {
+  const query = searchInput.value.trim().toLocaleLowerCase('ja');
+  return activeGroup().events.filter((event) => {
     const matchesCategory = categoryFilter.value === 'all' || event.category === categoryFilter.value;
-    return matchesCategory && (!query || event.title.toLowerCase().includes(query));
+    return matchesCategory && (!query || event.title.toLocaleLowerCase('ja').includes(query));
   }).sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
 }
 
@@ -44,40 +134,92 @@ function renderAgenda() {
     updateSummary();
     return;
   }
-  const groups = visibleEvents.reduce((result, event) => {
+  const groupsByDate = visibleEvents.reduce((result, event) => {
     (result[event.date] ||= []).push(event);
     return result;
   }, {});
-  agendaView.innerHTML = Object.entries(groups).map(([date, dayEvents]) => {
+  const tomorrow = dateAfter(1);
+  agendaView.innerHTML = Object.entries(groupsByDate).map(([date, dayEvents]) => {
     const label = dateLabel(date);
-    return `<div class="day-group"><div class="day-label"><time>${label.monthDay} ${label.day}</time><strong>${date === today ? '今日' : date === '2026-08-26' ? '明日' : ''}</strong>${date === today ? '<span class="today-tag">TODAY</span>' : ''}</div>${dayEvents.map((event) => `<article class="event-card"><time class="event-time">${event.time}</time><span class="event-color ${event.category}"></span><div class="event-info"><strong>${event.title}</strong><small>${categoryLabels[event.category]} ・ ${event.attendees.length}人が参加</small></div>${renderAttendees(event.attendees)}</article>`).join('')}</div>`;
+    const dayLabel = date === today ? '今日' : date === tomorrow ? '明日' : '';
+    return `<div class="day-group"><div class="day-label"><time>${label.monthDay} ${label.day}</time><strong>${dayLabel}</strong>${date === today ? '<span class="today-tag">TODAY</span>' : ''}</div>${dayEvents.map((event) => `<article class="event-card"><time class="event-time">${escapeHTML(event.time)}</time><span class="event-color ${event.category}"></span><div class="event-info"><strong>${escapeHTML(event.title)}</strong><small>${categoryLabels[event.category]} ・ ${event.attendees.length}人が参加</small></div>${renderAttendees(event.attendees)}</article>`).join('')}</div>`;
   }).join('');
   updateSummary();
 }
 
 function renderWeek() {
-  const start = new Date('2026-08-23T00:00:00');
+  const start = new Date(`${today}T00:00:00`);
+  start.setDate(start.getDate() - start.getDay());
+  const visibleEvents = filteredEvents();
   weekView.innerHTML = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(start);
     date.setDate(start.getDate() + index);
-    const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    const dayEvents = events.filter((event) => event.date === dateString).sort((a, b) => a.time.localeCompare(b.time));
-    return `<div class="week-column"><div class="week-head ${dateString === today ? 'today' : ''}">${dayNames[date.getDay()]}<strong>${date.getDate()}</strong></div>${dayEvents.map((event) => `<div class="week-event ${event.category}"><b>${event.time}</b><br>${event.title}</div>`).join('')}</div>`;
+    const dateString = dateToString(date);
+    const dayEvents = visibleEvents.filter((event) => event.date === dateString);
+    return `<div class="week-column"><div class="week-head ${dateString === today ? 'today' : ''}">${dayNames[date.getDay()]}<strong>${date.getDate()}</strong></div>${dayEvents.map((event) => `<div class="week-event ${event.category}"><b>${escapeHTML(event.time)}</b><br>${escapeHTML(event.title)}</div>`).join('')}</div>`;
   }).join('');
 }
 
 function updateSummary() {
-  const todayEvents = events.filter((event) => event.date === today).sort((a, b) => a.time.localeCompare(b.time));
-  document.querySelector('#todayCount').textContent = todayEvents.length;
-  document.querySelector('#nextEvent').textContent = todayEvents[0]?.title || '予定なし';
-  document.querySelector('#nextTime').textContent = todayEvents[0]?.time || '--:--';
+  const group = activeGroup();
+  const now = new Date();
+  const upcomingEvents = group.events
+    .map((event) => ({ event, startsAt: new Date(`${event.date}T${event.time}:00`) }))
+    .filter(({ startsAt }) => startsAt >= now)
+    .sort((a, b) => a.startsAt - b.startsAt);
+  const next = upcomingEvents[0];
+  document.querySelector('#todayCount').textContent = group.events.filter((event) => event.date === today).length;
+  document.querySelector('#memberCount').textContent = group.members.length;
+  document.querySelector('#nextEvent').textContent = next?.event.title || '予定なし';
+  document.querySelector('#nextTime').textContent = next
+    ? `${next.event.date === today ? '' : `${dateLabel(next.event.date).monthDay} `}${next.event.time}`
+    : '--:--';
 }
 
-function saveEvents() {
-  localStorage.setItem('tsudoi-events', JSON.stringify(events));
+function renderGroups() {
+  groupSelect.innerHTML = groups.map((group) => `<option value="${escapeHTML(group.id)}">${escapeHTML(group.name)}</option>`).join('');
+  groupSelect.value = activeGroupId;
+  document.querySelector('#activeGroupName').textContent = activeGroup().name;
+}
+
+function renderMembers() {
+  const members = activeGroup().members;
+  const memberList = document.querySelector('#memberList');
+  memberList.innerHTML = members.length
+    ? members.map((member, index) => `<div class="member"><span class="member-avatar ${memberAvatarClasses[index % memberAvatarClasses.length]}">${escapeHTML(member.initials)}</span><span><strong>${escapeHTML(member.name)}</strong><small>${escapeHTML(member.role)}</small></span></div>`).join('')
+    : '<p class="members-empty">メンバーはまだいません。</p>';
+}
+
+function renderAll() {
+  renderGroups();
+  renderMembers();
+  document.querySelector('#todayLabel').textContent = new Intl.DateTimeFormat('ja-JP', {
+    year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
+  }).format(new Date(`${today}T00:00:00`));
   renderAgenda();
   renderWeek();
 }
+
+function saveState() {
+  try {
+    localStorage.setItem('tsudoi-groups', JSON.stringify(groups));
+    localStorage.setItem('tsudoi-active-group', JSON.stringify(activeGroupId));
+    document.querySelector('#syncStatus').innerHTML = '<span class="status-dot"></span>このブラウザーに保存';
+  } catch {
+    document.querySelector('#syncStatus').textContent = '保存できません';
+  }
+  renderAll();
+}
+
+groupSelect.addEventListener('change', () => {
+  activeGroupId = groupSelect.value;
+  try {
+    localStorage.setItem('tsudoi-active-group', JSON.stringify(activeGroupId));
+  } catch {
+    document.querySelector('#syncStatus').textContent = '保存できません';
+  }
+  renderAll();
+});
 
 document.querySelectorAll('.view-button').forEach((button) => button.addEventListener('click', () => {
   document.querySelectorAll('.view-button').forEach((item) => item.classList.remove('active'));
@@ -87,19 +229,82 @@ document.querySelectorAll('.view-button').forEach((button) => button.addEventLis
   weekView.hidden = !isWeek;
   if (isWeek) renderWeek();
 }));
-searchInput.addEventListener('input', renderAgenda);
-categoryFilter.addEventListener('change', renderAgenda);
-document.querySelector('#openModal').addEventListener('click', () => modal.showModal());
-document.querySelector('#closeModal').addEventListener('click', () => modal.close());
-modal.addEventListener('click', (event) => { if (event.target === modal) modal.close(); });
-form.addEventListener('submit', (event) => {
-  event.preventDefault();
-  const formData = new FormData(form);
-  events.push({ id: Date.now(), title: formData.get('title'), date: formData.get('date'), time: formData.get('time'), category: formData.get('category'), attendees: (formData.get('attendees') || 'KN').split(/[、,]/).map((name) => name.trim()).filter(Boolean) });
-  saveEvents();
-  form.reset();
-  modal.close();
+
+searchInput.addEventListener('input', () => { renderAgenda(); renderWeek(); });
+categoryFilter.addEventListener('change', () => { renderAgenda(); renderWeek(); });
+
+document.querySelector('#openModal').addEventListener('click', () => {
+  eventForm.elements.date.value = today;
+  eventModal.showModal();
+});
+document.querySelector('#closeModal').addEventListener('click', () => eventModal.close());
+document.querySelector('#createGroup').addEventListener('click', () => groupModal.showModal());
+document.querySelector('#addMember').addEventListener('click', () => memberModal.showModal());
+document.querySelectorAll('[data-close-dialog]').forEach((button) => {
+  button.addEventListener('click', () => document.querySelector(`#${button.dataset.closeDialog}`).close());
+});
+document.querySelectorAll('dialog').forEach((dialog) => {
+  dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog.close(); });
 });
 
-renderAgenda();
-renderWeek();
+eventForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const formData = new FormData(eventForm);
+  const attendeeText = String(formData.get('attendees') || '').trim();
+  const fallbackAttendee = activeGroup().members[0]?.initials || '';
+  const attendees = (attendeeText || fallbackAttendee).split(/[、,]/).map((name) => name.trim()).filter(Boolean);
+  activeGroup().events.push({
+    id: `event-${Date.now()}`,
+    title: String(formData.get('title')).trim(),
+    date: String(formData.get('date')),
+    time: String(formData.get('time')),
+    category: String(formData.get('category')),
+    attendees
+  });
+  saveState();
+  eventForm.reset();
+  eventModal.close();
+});
+
+groupForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const nameField = groupForm.elements.name;
+  const name = nameField.value.trim();
+  nameField.setCustomValidity(!name
+    ? 'グループ名を入力してください。'
+    : groups.some((group) => group.name.toLocaleLowerCase('ja') === name.toLocaleLowerCase('ja'))
+    ? '同じ名前のグループがあります。別の名前を入力してください。'
+    : '');
+  if (!groupForm.reportValidity()) return;
+  const group = {
+    id: `group-${Date.now()}`,
+    name,
+    members: [{ id: `member-${Date.now()}`, name: '加奈', initials: 'KN', role: '主催者' }],
+    events: []
+  };
+  groups.push(group);
+  activeGroupId = group.id;
+  saveState();
+  groupForm.reset();
+  groupModal.close();
+});
+
+memberForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const nameField = memberForm.elements.name;
+  const name = nameField.value.trim();
+  nameField.setCustomValidity(!name
+    ? '名前を入力してください。'
+    : activeGroup().members.some((member) => member.name.toLocaleLowerCase('ja') === name.toLocaleLowerCase('ja'))
+    ? 'このグループには同じ名前のメンバーがいます。'
+    : '');
+  if (!memberForm.reportValidity()) return;
+  const initialsField = memberForm.elements.initials;
+  const initials = initialsField.value.trim() || [...name.replace(/\s/g, '')].slice(0, 2).join('').toUpperCase();
+  activeGroup().members.push({ id: `member-${Date.now()}`, name, initials, role: '参加者' });
+  saveState();
+  memberForm.reset();
+  memberModal.close();
+});
+
+renderAll();
